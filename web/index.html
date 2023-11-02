@@ -54,6 +54,13 @@
         }
       });
     });
+
+    // Disable app download option
+    // https://github.com/flutter/flutter/issues/98400
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      return false;
+    });
   </script>
 </body>
 </html>
