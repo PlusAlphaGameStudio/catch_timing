@@ -1,8 +1,9 @@
 import 'dart:ui';
 
-import 'package:catch_timing/game_page.dart';
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'catch_timing_app_router.gr.dart';
 import 'greyscale_color_filter.dart';
 
 enum StageState {
@@ -26,9 +27,7 @@ class StageButton extends StatelessWidget {
         : stageState == StageState.unlock
             ? InkWell(
                 onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => GamePage(stageId),
-                  ));
+                  context.router.push(GameRoute(stageId: stageId));
                 },
                 child: Image.asset('assets/tests/images/lock/$_fileName'),
               )

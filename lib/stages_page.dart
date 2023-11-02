@@ -1,6 +1,8 @@
+import 'package:auto_route/annotations.dart';
 import 'package:catch_timing/stage_button.dart';
 import 'package:flutter/material.dart';
 
+@RoutePage()
 class StagesPage extends StatefulWidget {
   const StagesPage({super.key});
 
