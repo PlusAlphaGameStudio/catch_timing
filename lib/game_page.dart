@@ -5,8 +5,11 @@ import 'package:auto_route/annotations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import 'path_painter.dart';
+import 'prefs_key.dart';
+import 'record_model.dart';
 
 @RoutePage()
 class GamePage extends StatefulWidget {
@@ -148,6 +151,10 @@ class _GamePageState extends State<GamePage>
       hit
           ? 'assets/tests/images/clear/${widget.fileName}'
           : 'assets/tests/images/lock/${widget.fileName}',
+      //fit: BoxFit.contain,
+      //height: double.infinity,
+      //width: double.infinity,
+      //alignment: Alignment.center,
     );
 
     final targetCirclePos = Offset(
@@ -168,7 +175,7 @@ class _GamePageState extends State<GamePage>
   }
 
   Widget _buildGameWidget(
-    Image image,
+    Widget image,
     Offset targetCirclePos,
     Offset crosshairCirclePos,
     bool hit,
@@ -187,7 +194,8 @@ class _GamePageState extends State<GamePage>
           ),
         ),
         Positioned.fill(child: InkWell(
-          onTapDown: (details) {
+          onTapDown: (details) async {
+            // 이미 클리어!
             if (_controller.isAnimating == false) {
               return;
             }
@@ -198,6 +206,13 @@ class _GamePageState extends State<GamePage>
               ScaffoldMessenger.of(context)
                   .showSnackBar(const SnackBar(content: Text('Hit!')));
               _controller.stop(canceled: false);
+
+              final recordModel = context.read<RecordModel>();
+
+              await recordModel.setInt(
+                  PrefsKey.lastClearedStage,
+                  max(await recordModel.getInt(PrefsKey.lastClearedStage),
+                      widget.stageId));
             } else {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                 content: Text('Miss'),

@@ -1,6 +1,8 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:catch_timing/catch_timing_app_router.gr.dart';
+import 'package:catch_timing/record_model.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'catch_timing_app_router.dart';
 
@@ -15,12 +17,17 @@ class CatchTimingApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      routerConfig: _appRouter.config(),
-      title: '캐치 타이밍',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
-        useMaterial3: true,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => RecordModel()),
+      ],
+      child: MaterialApp.router(
+        routerConfig: _appRouter.config(),
+        title: '캐치 타이밍',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+          useMaterial3: true,
+        ),
       ),
     );
   }
