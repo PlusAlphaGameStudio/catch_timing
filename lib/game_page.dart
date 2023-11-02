@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'path_painter.dart';
+
 @RoutePage()
 class GamePage extends StatefulWidget {
   final int stageId;
@@ -23,11 +25,8 @@ enum PathSegmentType {
   curve,
 }
 
-class PathSegment {}
-
-class LinePathSegment extends PathSegment {}
-
-class CurvePathSegment extends PathSegment {}
+// TODO: image size
+const _imageSize = Size(640, 960);
 
 class _GamePageState extends State<GamePage>
     with SingleTickerProviderStateMixin {
@@ -38,7 +37,6 @@ class _GamePageState extends State<GamePage>
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
-  late final Rect _pathBounds;
 
   static const _circleSize = Size(100, 100);
   static const _speed = 0.2;
@@ -51,13 +49,10 @@ class _GamePageState extends State<GamePage>
 
     _random = Random();
 
-    //final size = Size(500 - _circleSize.width, 1000 - _circleSize.height);
-    const size = Size(640, 960);
-    _targetPos = _getRandomPointWithin(size);
-    _path = _createPath(size, _targetPos);
+    _targetPos = _getRandomPointWithin(_imageSize);
+    _path = _createPath(_imageSize, _targetPos);
     //_path = _createDebugPath(size, _targetPos);
     _pathMetric = _createMetric(_path);
-    _pathBounds = _path.getBounds();
 
     if (kDebugMode) {
       print('Path bounds: ${_path.getBounds()}');
@@ -153,51 +148,40 @@ class _GamePageState extends State<GamePage>
       aligned
           ? 'assets/tests/images/clear/${widget.fileName}'
           : 'assets/tests/images/lock/${widget.fileName}',
-      //fit: BoxFit.contain,
-      //height: double.infinity,
-      //width: double.infinity,
     );
 
-    // final originX =
-    //     constraints.constrainWidth() / 2 - _pathBounds.width / 2;
-    // final originY =
-    //     constraints.constrainHeight() / 2 - _pathBounds.height / 2;
-
-    // final scaleFactor =
-    //     1.0; //              constraints.constrainHeight() / _pathBounds.height;
-
-    // if (kDebugMode) {
-    //   print(
-    //       'Constrain: ${constraints.constrainWidth()} x ${constraints.constrainHeight()}');
-    // }
-
-    final targetCenterPos = Offset(
+    final targetCirclePos = Offset(
       _targetPos.dx - _circleSize.width / 2,
       _targetPos.dy - _circleSize.height / 2,
     );
 
-    final circleCenterPos = Offset(
+    final crosshairCirclePos = Offset(
       circlePos.dx - _circleSize.width / 2,
       circlePos.dy - _circleSize.height / 2,
     );
     return Scaffold(
       body: Center(
-        child: _buildGameWidget(image, targetCenterPos, circleCenterPos),
+        child: _buildGameWidget(image, targetCirclePos, crosshairCirclePos),
       ),
     );
   }
 
   Widget _buildGameWidget(
     Image image,
-    Offset targetCenterPos,
-    Offset circleCenterPos,
+    Offset targetCirclePos,
+    Offset crosshairCirclePos,
   ) {
     return Stack(
       children: [
         image,
         Positioned.fill(
           child: CustomPaint(
-            painter: PathPainter(_path, targetCenterPos, circleCenterPos),
+            painter: PathPainter(
+              _imageSize,
+              _path,
+              targetCirclePos,
+              crosshairCirclePos,
+            ),
           ),
         ),
       ],
@@ -218,112 +202,4 @@ class _GamePageState extends State<GamePage>
       print('Image resolution: (${img.width}x${img.height})');
     }
   }
-}
-
-// class CirclePainter extends CustomPainter {
-//   final double fraction;
-//   late final Paint _circlePaint;
-
-//   CirclePainter({required this.fraction, Color? circleColor}) {
-//     _circlePaint = Paint()
-//       ..color = circleColor ?? Colors.white
-//       ..style = PaintingStyle.stroke
-//       ..strokeWidth = 12.0
-//       ..strokeCap = StrokeCap.round;
-//   }
-
-//   @override
-//   void paint(Canvas canvas, Size size) {
-//     var rect = const Offset(0.0, 0.0) & size;
-
-//     final sX = size.width / 640;
-//     final sY = size.height / 960;
-//     final s = min(sX, sY);
-
-//     if (kDebugMode) {
-//       // print('Path painter size: $size');
-//       // print('Path painter scale: $s');
-//     }
-
-//     canvas.scale(s);
-
-//     canvas.drawArc(rect, -pi / 2, pi * 2 * fraction, false, _circlePaint);
-//   }
-
-//   @override
-//   bool shouldRepaint(CirclePainter oldDelegate) {
-//     return oldDelegate.fraction != fraction;
-//   }
-// }
-
-class PathPainter extends CustomPainter {
-  final Path _path;
-  final Offset _targetPos;
-  final Offset _circlePos;
-  final Size _circleSize = const Size(100, 100);
-
-  late final Paint _circlePaint;
-  late final Paint _targetPaint;
-
-  PathPainter(this._path, this._targetPos, this._circlePos) {
-    _circlePaint = Paint()
-      ..color = Colors.red
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.0
-      ..strokeCap = StrokeCap.round;
-
-    _targetPaint = Paint()
-      ..color = Colors.cyan
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.0
-      ..strokeCap = StrokeCap.round;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    Paint paint = Paint()
-      ..color = Colors.redAccent.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10.0;
-
-    final sX = size.width / 640;
-    final sY = size.height / 960;
-    final s = min(sX, sY);
-
-    if (kDebugMode) {
-      print('Path painter size: $size');
-      print('Path painter scale: $s');
-    }
-
-    var sizeBackground = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color.fromARGB(30, 200, 30, 30)
-      ..isAntiAlias = true;
-
-    var background = Paint()
-      ..style = PaintingStyle.fill
-      ..color = const Color.fromARGB(30, 30, 30, 30)
-      ..isAntiAlias = true;
-
-    //
-    canvas.scale(s);
-
-    //canvas.translate(0, (960 - size.height) / 2);
-
-    //canvas.drawRect(const Rect.fromLTWH(0, 0, 640, 960), background);
-
-    // canvas.drawRect(
-    //     Rect.fromLTWH(0, 0, size.width, size.height), sizeBackground);
-
-    canvas.drawPath(_path, paint);
-    canvas.drawArc(
-        _targetPos & _circleSize, -pi / 2, pi * 2, false, _targetPaint);
-    canvas.drawArc(
-        _circlePos & _circleSize, -pi / 2, pi * 2, false, _circlePaint);
-
-    //canvas.translate(size.width / 2, size.height / 2);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
