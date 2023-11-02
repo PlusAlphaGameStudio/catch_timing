@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 @RoutePage()
 class GamePage extends StatefulWidget {
@@ -17,6 +18,17 @@ class GamePage extends StatefulWidget {
   State<GamePage> createState() => _GamePageState();
 }
 
+enum PathSegmentType {
+  line,
+  curve,
+}
+
+class PathSegment {}
+
+class LinePathSegment extends PathSegment {}
+
+class CurvePathSegment extends PathSegment {}
+
 class _GamePageState extends State<GamePage>
     with SingleTickerProviderStateMixin {
   double _fraction = 0.0;
@@ -26,6 +38,7 @@ class _GamePageState extends State<GamePage>
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
+  late final Rect _pathBounds;
 
   static const _circleSize = Size(100, 100);
   static const _speed = 0.2;
@@ -34,16 +47,21 @@ class _GamePageState extends State<GamePage>
   void initState() {
     super.initState();
 
+    _createPathData();
+
     _random = Random();
 
-    const size = Size(600, 600);
+    //final size = Size(500 - _circleSize.width, 1000 - _circleSize.height);
+    const size = Size(640, 960);
     _targetPos = _getRandomPointWithin(size);
     _path = _createPath(size, _targetPos);
+    //_path = _createDebugPath(size, _targetPos);
     _pathMetric = _createMetric(_path);
+    _pathBounds = _path.getBounds();
 
     if (kDebugMode) {
-      print(_path.getBounds());
-      print(_targetPos);
+      print('Path bounds: ${_path.getBounds()}');
+      print('Target pos: $_targetPos');
     }
 
     _controller = AnimationController(
@@ -64,6 +82,15 @@ class _GamePageState extends State<GamePage>
   Offset _getRandomPointWithin(Size size) {
     return Offset(
         _random.nextDouble() * size.width, _random.nextDouble() * size.height);
+  }
+
+  Path _createDebugPath(Size size, Offset targetPos) {
+    final path = Path();
+    path.lineTo(size.width, 0);
+    path.lineTo(size.width, size.height);
+    path.lineTo(0, size.height);
+    path.lineTo(0, 0);
+    return path;
   }
 
   Path _createPath(Size size, Offset targetPos) {
@@ -122,46 +149,58 @@ class _GamePageState extends State<GamePage>
 
     final aligned = (circlePos - _targetPos).distance < 10;
 
+    final image = Image.asset(
+      aligned
+          ? 'assets/tests/images/clear/${widget.fileName}'
+          : 'assets/tests/images/lock/${widget.fileName}',
+      //fit: BoxFit.contain,
+      //height: double.infinity,
+      //width: double.infinity,
+    );
+
+    // final originX =
+    //     constraints.constrainWidth() / 2 - _pathBounds.width / 2;
+    // final originY =
+    //     constraints.constrainHeight() / 2 - _pathBounds.height / 2;
+
+    // final scaleFactor =
+    //     1.0; //              constraints.constrainHeight() / _pathBounds.height;
+
+    // if (kDebugMode) {
+    //   print(
+    //       'Constrain: ${constraints.constrainWidth()} x ${constraints.constrainHeight()}');
+    // }
+
+    final targetCenterPos = Offset(
+      _targetPos.dx - _circleSize.width / 2,
+      _targetPos.dy - _circleSize.height / 2,
+    );
+
+    final circleCenterPos = Offset(
+      circlePos.dx - _circleSize.width / 2,
+      circlePos.dy - _circleSize.height / 2,
+    );
     return Scaffold(
-      body: Stack(
-        alignment: Alignment.center,
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            aligned
-                ? 'assets/tests/images/clear/${widget.fileName}'
-                : 'assets/tests/images/lock/${widget.fileName}',
-            fit: BoxFit.contain,
-            //height: double.infinity,
-            //width: double.infinity,
-          ),
-          CustomPaint(
-            painter: PathPainter(_path),
-          ),
-          Positioned(
-            left: _targetPos.dx - _circleSize.width / 2,
-            top: _targetPos.dy - _circleSize.height / 2,
-            child: CustomPaint(
-              painter: CirclePainter(
-                fraction: 1,
-                circleColor: Colors.cyan,
-              ),
-              size: _circleSize,
-            ),
-          ),
-          Positioned(
-            left: circlePos.dx - _circleSize.width / 2,
-            top: circlePos.dy - _circleSize.height / 2,
-            child: CustomPaint(
-              painter: CirclePainter(
-                fraction: 1,
-                circleColor: Colors.red,
-              ),
-              size: _circleSize,
-            ),
-          ),
-        ],
+      body: Center(
+        child: _buildGameWidget(image, targetCenterPos, circleCenterPos),
       ),
+    );
+  }
+
+  Widget _buildGameWidget(
+    Image image,
+    Offset targetCenterPos,
+    Offset circleCenterPos,
+  ) {
+    return Stack(
+      children: [
+        image,
+        Positioned.fill(
+          child: CustomPaint(
+            painter: PathPainter(_path, targetCenterPos, circleCenterPos),
+          ),
+        ),
+      ],
     );
   }
 
@@ -170,15 +209,71 @@ class _GamePageState extends State<GamePage>
     _controller.dispose();
     super.dispose();
   }
+
+  void _createPathData() async {
+    final imgData =
+        await rootBundle.load('assets/tests/images/lock/${widget.fileName}');
+    final img = await decodeImageFromList(imgData.buffer.asUint8List());
+    if (kDebugMode) {
+      print('Image resolution: (${img.width}x${img.height})');
+    }
+  }
 }
 
-class CirclePainter extends CustomPainter {
-  final double fraction;
-  late final Paint _circlePaint;
+// class CirclePainter extends CustomPainter {
+//   final double fraction;
+//   late final Paint _circlePaint;
 
-  CirclePainter({required this.fraction, Color? circleColor}) {
+//   CirclePainter({required this.fraction, Color? circleColor}) {
+//     _circlePaint = Paint()
+//       ..color = circleColor ?? Colors.white
+//       ..style = PaintingStyle.stroke
+//       ..strokeWidth = 12.0
+//       ..strokeCap = StrokeCap.round;
+//   }
+
+//   @override
+//   void paint(Canvas canvas, Size size) {
+//     var rect = const Offset(0.0, 0.0) & size;
+
+//     final sX = size.width / 640;
+//     final sY = size.height / 960;
+//     final s = min(sX, sY);
+
+//     if (kDebugMode) {
+//       // print('Path painter size: $size');
+//       // print('Path painter scale: $s');
+//     }
+
+//     canvas.scale(s);
+
+//     canvas.drawArc(rect, -pi / 2, pi * 2 * fraction, false, _circlePaint);
+//   }
+
+//   @override
+//   bool shouldRepaint(CirclePainter oldDelegate) {
+//     return oldDelegate.fraction != fraction;
+//   }
+// }
+
+class PathPainter extends CustomPainter {
+  final Path _path;
+  final Offset _targetPos;
+  final Offset _circlePos;
+  final Size _circleSize = const Size(100, 100);
+
+  late final Paint _circlePaint;
+  late final Paint _targetPaint;
+
+  PathPainter(this._path, this._targetPos, this._circlePos) {
     _circlePaint = Paint()
-      ..color = circleColor ?? Colors.white
+      ..color = Colors.red
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.0
+      ..strokeCap = StrokeCap.round;
+
+    _targetPaint = Paint()
+      ..color = Colors.cyan
       ..style = PaintingStyle.stroke
       ..strokeWidth = 12.0
       ..strokeCap = StrokeCap.round;
@@ -186,30 +281,47 @@ class CirclePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    var rect = const Offset(0.0, 0.0) & size;
-
-    canvas.drawArc(rect, -pi / 2, pi * 2 * fraction, false, _circlePaint);
-  }
-
-  @override
-  bool shouldRepaint(CirclePainter oldDelegate) {
-    return oldDelegate.fraction != fraction;
-  }
-}
-
-class PathPainter extends CustomPainter {
-  final Path _path;
-
-  PathPainter(this._path);
-
-  @override
-  void paint(Canvas canvas, Size size) {
     Paint paint = Paint()
       ..color = Colors.redAccent.withOpacity(0.3)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
+      ..strokeWidth = 10.0;
+
+    final sX = size.width / 640;
+    final sY = size.height / 960;
+    final s = min(sX, sY);
+
+    if (kDebugMode) {
+      print('Path painter size: $size');
+      print('Path painter scale: $s');
+    }
+
+    var sizeBackground = Paint()
+      ..style = PaintingStyle.fill
+      ..color = const Color.fromARGB(30, 200, 30, 30)
+      ..isAntiAlias = true;
+
+    var background = Paint()
+      ..style = PaintingStyle.fill
+      ..color = const Color.fromARGB(30, 30, 30, 30)
+      ..isAntiAlias = true;
+
+    //
+    canvas.scale(s);
+
+    //canvas.translate(0, (960 - size.height) / 2);
+
+    //canvas.drawRect(const Rect.fromLTWH(0, 0, 640, 960), background);
+
+    // canvas.drawRect(
+    //     Rect.fromLTWH(0, 0, size.width, size.height), sizeBackground);
 
     canvas.drawPath(_path, paint);
+    canvas.drawArc(
+        _targetPos & _circleSize, -pi / 2, pi * 2, false, _targetPaint);
+    canvas.drawArc(
+        _circlePos & _circleSize, -pi / 2, pi * 2, false, _circlePaint);
+
+    //canvas.translate(size.width / 2, size.height / 2);
   }
 
   @override
