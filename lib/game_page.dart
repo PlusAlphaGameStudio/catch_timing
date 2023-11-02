@@ -142,10 +142,10 @@ class _GamePageState extends State<GamePage>
   Widget build(BuildContext context) {
     final circlePos = _calculatePosition(_fraction);
 
-    final aligned = (circlePos - _targetPos).distance < 10;
+    final hit = (circlePos - _targetPos).distance < 10;
 
     final image = Image.asset(
-      aligned
+      hit
           ? 'assets/tests/images/clear/${widget.fileName}'
           : 'assets/tests/images/lock/${widget.fileName}',
     );
@@ -161,7 +161,8 @@ class _GamePageState extends State<GamePage>
     );
     return Scaffold(
       body: Center(
-        child: _buildGameWidget(image, targetCirclePos, crosshairCirclePos),
+        child:
+            _buildGameWidget(image, targetCirclePos, crosshairCirclePos, hit),
       ),
     );
   }
@@ -170,6 +171,7 @@ class _GamePageState extends State<GamePage>
     Image image,
     Offset targetCirclePos,
     Offset crosshairCirclePos,
+    bool hit,
   ) {
     return Stack(
       children: [
@@ -184,6 +186,26 @@ class _GamePageState extends State<GamePage>
             ),
           ),
         ),
+        Positioned.fill(child: InkWell(
+          onTapDown: (details) {
+            if (_controller.isAnimating == false) {
+              return;
+            }
+
+            ScaffoldMessenger.of(context).clearSnackBars();
+
+            if (hit) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(const SnackBar(content: Text('Hit!')));
+              _controller.stop(canceled: false);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Miss'),
+                duration: Duration(milliseconds: 0),
+              ));
+            }
+          },
+        )),
       ],
     );
   }
