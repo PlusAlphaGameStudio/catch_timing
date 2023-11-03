@@ -40,14 +40,16 @@ class CatchTimingApp extends StatelessWidget {
             ),
           );
         } else {
-          return MaterialApp(
-            home: Scaffold(
-              body: Center(
+          return MaterialApp.router(
+            routerConfig: _appRouter.config(),
+            title: '캐치 타이밍',
+            builder: (context, child) {
+              return Center(
                   child: Text(resourceModel.inited == false ||
                           recordModel.inited == false
                       ? 'Init failed. Aborted.'
-                      : 'Loading...')),
-            ),
+                      : 'Loading...'));
+            },
           );
         }
       }),
