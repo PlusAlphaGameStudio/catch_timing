@@ -38,9 +38,11 @@ class _StagesPageState extends State<StagesPage> {
                       padding: const EdgeInsets.all(8.0),
                       child: StageButton(
                           i,
-                          i <= (lastClearedStage + 1)
-                              ? StageState.unlock
-                              : StageState.lock),
+                          i <= lastClearedStage
+                              ? StageState.clear
+                              : i == lastClearedStage + 1
+                                  ? StageState.unlock
+                                  : StageState.lock),
                     ),
                   ]
                 ],

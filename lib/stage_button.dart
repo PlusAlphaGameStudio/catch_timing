@@ -22,7 +22,12 @@ class StageButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return stageState == StageState.clear
-        ? Image.asset(getClearImagePath(stageId))
+        ? InkWell(
+            onTap: () {
+              context.router.push(GameRoute(stageId: stageId));
+            },
+            child: Image.asset(getClearImagePath(stageId)),
+          )
         : stageState == StageState.unlock
             ? InkWell(
                 onTap: () {

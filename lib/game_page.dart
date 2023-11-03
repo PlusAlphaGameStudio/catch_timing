@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:another_flushbar/flushbar.dart';
 import 'package:auto_route/annotations.dart';
 import 'package:catch_timing/globals.dart';
 import 'package:flutter/foundation.dart';
@@ -34,14 +35,15 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   double _fraction = 0.0;
   late final Animation<double> _moveAnim;
   late final AnimationController _moveAnimCtrl;
-  double _alpha = 0.0;
+  double _alpha = 1.0;
   late final Animation<double> _alphaAnim;
   late final AnimationController _alphaAnimCtrl;
+  late final AnimationController _tapCoolAnimCtrl;
   late final Path _path;
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
-  bool cleared = false;
+  bool _cleared = false;
 
   static const _circleRadius = 50.0;
   static const _circleSize = Size(_circleRadius, _circleRadius);
@@ -67,10 +69,18 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
 
     _initMoveAnimCtrl();
     _initAlphaAnimCtrl();
+    _initTapCoolAnimCtrl();
 
-    Future.delayed(Duration.zero, () {
-      _showStartDialog();
-    });
+    _cleared = widget.stageId <=
+        context.read<RecordModel>().getInt(PrefsKey.lastClearedStage);
+
+    if (_cleared == false) {
+      Future.delayed(Duration.zero, () {
+        _showStartDialog();
+      });
+    } else {
+      _alpha = 0;
+    }
   }
 
   void _showStartDialog() {
@@ -118,10 +128,10 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     _alphaAnimCtrl =
         AnimationController(duration: const Duration(seconds: 1), vsync: this);
 
-    _alphaAnim = Tween(begin: 0.0, end: 1.0).animate(_alphaAnimCtrl)
+    _alphaAnim = Tween(begin: 1.0, end: 0.0).animate(_alphaAnimCtrl)
       ..addListener(() {
         setState(() {
-          _alpha = _moveAnim.value;
+          _alpha = _alphaAnim.value;
         });
       });
   }
@@ -199,7 +209,7 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     final lockImage = Image.asset(getLockImagePath(widget.stageId));
     final clearImage = Image.asset(getClearImagePath(widget.stageId));
 
-    final image = hit ? clearImage : lockImage;
+    final image = (hit || _cleared) ? clearImage : lockImage;
 
     final targetCirclePos = Offset(
       _targetPos.dx - _circleSize.width / 2,
@@ -231,20 +241,23 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
       children: [
         image,
         Positioned.fill(
-          child: CustomPaint(
-            painter: PathPainter(
-              _imageSize,
-              _path,
-              _circleSize,
-              targetCirclePos,
-              crosshairCirclePos,
+          child: Opacity(
+            opacity: _alpha,
+            child: CustomPaint(
+              painter: PathPainter(
+                _imageSize,
+                _path,
+                _circleSize,
+                targetCirclePos,
+                crosshairCirclePos,
+              ),
             ),
           ),
         ),
         Positioned.fill(child: GestureDetector(
           onTapDown: (details) async {
             // 이미 클리어!
-            if (cleared) {
+            if (_cleared) {
               return;
             }
 
@@ -252,13 +265,22 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
               _moveAnimCtrl.forward();
               return;
             } else {
-              _moveAnimCtrl.stop(canceled: false);
+              // 탭 쿨 중이 아닐 때만 멈출 수 있다.
+              if (_tapCoolAnimCtrl.isAnimating == false) {
+                _moveAnimCtrl.stop(canceled: false);
+              } else {
+                return;
+              }
             }
+
+            _tapCoolAnimCtrl.reset();
 
             ScaffoldMessenger.of(context).clearSnackBars();
 
             if (hit) {
-              cleared = true;
+              _cleared = true;
+
+              _showClearDialog();
 
               ScaffoldMessenger.of(context)
                   .showSnackBar(const SnackBar(content: Text('Hit!')));
@@ -270,13 +292,25 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
                   max(recordModel.getInt(PrefsKey.lastClearedStage),
                       widget.stageId));
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                behavior: SnackBarBehavior.floating,
-                margin: EdgeInsets.only(top: 0),
-                dismissDirection: DismissDirection.none,
-                content: Text('Miss'),
-                duration: Duration(milliseconds: 250),
-              ));
+              Flushbar(
+                animationDuration: const Duration(microseconds: 1),
+                flushbarPosition: FlushbarPosition.TOP,
+                flushbarStyle: FlushbarStyle.FLOATING,
+                title: "아앗",
+                message: "좀 더 정확하게!",
+                duration: const Duration(seconds: 1),
+                margin: const EdgeInsets.all(8),
+                borderRadius: BorderRadius.circular(8),
+              ).show(context);
+
+              _tapCoolAnimCtrl.forward();
+              // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              //   behavior: SnackBarBehavior.floating,
+              //   margin: EdgeInsets.only(top: 0),
+              //   dismissDirection: DismissDirection.none,
+              //   content: Text('Miss'),
+              //   duration: Duration(milliseconds: 250),
+              // ));
             }
           },
         )),
@@ -296,5 +330,38 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     if (kDebugMode) {
       print('Image resolution: (${img.width}x${img.height})');
     }
+  }
+
+  void _showClearDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('클리어!🎉'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('$_stageName 클리어~~~'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _alphaAnimCtrl.forward();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _initTapCoolAnimCtrl() {
+    _tapCoolAnimCtrl = AnimationController(
+        duration: const Duration(milliseconds: 500), vsync: this);
   }
 }

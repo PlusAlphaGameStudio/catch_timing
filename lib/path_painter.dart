@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class PathPainter extends CustomPainter {
@@ -46,7 +47,9 @@ class PathPainter extends CustomPainter {
 
     canvas.scale(s);
 
-    canvas.drawPath(_path, paint);
+    if (kDebugMode) {
+      canvas.drawPath(_path, paint);
+    }
     canvas.drawArc(
         _targetPos & _circleSize, -pi / 2, pi * 2, false, _targetPaint);
     canvas.drawArc(

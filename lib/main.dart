@@ -44,11 +44,13 @@ class CatchTimingApp extends StatelessWidget {
             routerConfig: _appRouter.config(),
             title: '캐치 타이밍',
             builder: (context, child) {
-              return Center(
-                  child: Text(resourceModel.inited == false ||
-                          recordModel.inited == false
-                      ? 'Init failed. Aborted.'
-                      : 'Loading...'));
+              return Scaffold(
+                body: Center(
+                    child: Text(resourceModel.inited == false ||
+                            recordModel.inited == false
+                        ? 'Init failed. Aborted.'
+                        : 'Loading...')),
+              );
             },
           );
         }
