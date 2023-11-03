@@ -26,7 +26,22 @@ class StageButton extends StatelessWidget {
             onTap: () {
               context.router.push(GameRoute(stageId: stageId));
             },
-            child: Image.asset(getClearImagePath(stageId)),
+            child: Stack(children: [
+              Center(child: Image.asset(getClearImagePath(stageId))),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  decoration: BoxDecoration(
+                      shape: BoxShape.rectangle,
+                      border: Border.all(),
+                      color: Colors.yellow),
+                  child: const Text(
+                    '클리어🎉',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ]),
           )
         : stageState == StageState.unlock
             ? InkWell(
@@ -35,12 +50,20 @@ class StageButton extends StatelessWidget {
                 },
                 child: Image.asset(getLockImagePath(stageId)),
               )
-            : ImageFiltered(
-                imageFilter: greyscaleColorFilter,
-                child: ImageFiltered(
-                  imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Image.asset(getLockImagePath(stageId)),
-                ),
+            : Stack(
+                children: [
+                  Center(
+                    child: ImageFiltered(
+                      imageFilter: greyscaleColorFilter,
+                      child: Image.asset(getLockImagePath(stageId)),
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                        shape: BoxShape.rectangle,
+                        color: Colors.black.withOpacity(0.8)),
+                  )
+                ],
               );
   }
 }

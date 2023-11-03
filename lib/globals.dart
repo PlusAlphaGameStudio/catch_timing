@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 String _getFileName(int stageId) => '${stageId.toString().padLeft(2, '0')}.png';
 
 String get _resourceDomain => kDebugMode ? 'tests' : 'live';
+//String get _resourceDomain => 'live';
 
 String get _resourcePrefix => 'assets/$_resourceDomain/images';
 

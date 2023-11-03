@@ -43,7 +43,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
+  bool _precacheFinished = false;
   bool _cleared = false;
+  bool _manualToggled = false;
 
   static const _circleRadius = 50.0;
   static const _circleSize = Size(_circleRadius, _circleRadius);
@@ -81,6 +83,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     } else {
       _alpha = 0;
     }
+
+    Future.delayed(Duration.zero, _precacheResources);
   }
 
   void _showStartDialog() {
@@ -209,7 +213,14 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     final lockImage = Image.asset(getLockImagePath(widget.stageId));
     final clearImage = Image.asset(getClearImagePath(widget.stageId));
 
-    final image = (hit || _cleared) ? clearImage : lockImage;
+    var image = (hit || _cleared) ? clearImage : lockImage;
+    if (_manualToggled) {
+      if (image == clearImage) {
+        image = lockImage;
+      } else if (image == lockImage) {
+        image = clearImage;
+      }
+    }
 
     final targetCirclePos = Offset(
       _targetPos.dx - _circleSize.width / 2,
@@ -223,8 +234,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(title: Text(_stageName)),
       body: Center(
-        child:
-            _buildGameWidget(image, targetCirclePos, crosshairCirclePos, hit),
+        child: _precacheFinished
+            ? _buildGameWidget(image, targetCirclePos, crosshairCirclePos, hit)
+            : const Text('Loading...'),
       ),
     );
   }
@@ -254,66 +266,85 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
             ),
           ),
         ),
-        Positioned.fill(child: GestureDetector(
-          onTapDown: (details) async {
-            // 이미 클리어!
-            if (_cleared) {
-              return;
-            }
-
-            if (_moveAnimCtrl.isAnimating == false) {
-              _moveAnimCtrl.forward();
-              return;
-            } else {
-              // 탭 쿨 중이 아닐 때만 멈출 수 있다.
-              if (_tapCoolAnimCtrl.isAnimating == false) {
-                _moveAnimCtrl.stop(canceled: false);
-              } else {
+        Positioned.fill(
+          child: GestureDetector(
+            onTapDown: (details) async {
+              // 이미 클리어!
+              if (_cleared) {
                 return;
               }
-            }
 
-            _tapCoolAnimCtrl.reset();
+              if (_moveAnimCtrl.isAnimating == false) {
+                _moveAnimCtrl.repeat();
+                return;
+              } else {
+                // 탭 쿨 중이 아닐 때만 멈출 수 있다.
+                if (_tapCoolAnimCtrl.isAnimating == false) {
+                  _moveAnimCtrl.stop(canceled: false);
+                } else {
+                  return;
+                }
+              }
 
-            ScaffoldMessenger.of(context).clearSnackBars();
+              _tapCoolAnimCtrl.reset();
 
-            if (hit) {
-              _cleared = true;
+              ScaffoldMessenger.of(context).clearSnackBars();
 
-              _showClearDialog();
+              if (hit) {
+                _cleared = true;
 
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Hit!')));
+                _showClearDialog();
 
-              final recordModel = context.read<RecordModel>();
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(const SnackBar(content: Text('Hit!')));
 
-              await recordModel.setInt(
-                  PrefsKey.lastClearedStage,
-                  max(recordModel.getInt(PrefsKey.lastClearedStage),
-                      widget.stageId));
-            } else {
-              Flushbar(
-                animationDuration: const Duration(microseconds: 1),
-                flushbarPosition: FlushbarPosition.TOP,
-                flushbarStyle: FlushbarStyle.FLOATING,
-                title: "아앗",
-                message: "좀 더 정확하게!",
-                duration: const Duration(seconds: 1),
-                margin: const EdgeInsets.all(8),
-                borderRadius: BorderRadius.circular(8),
-              ).show(context);
+                final recordModel = context.read<RecordModel>();
 
-              _tapCoolAnimCtrl.forward();
-              // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              //   behavior: SnackBarBehavior.floating,
-              //   margin: EdgeInsets.only(top: 0),
-              //   dismissDirection: DismissDirection.none,
-              //   content: Text('Miss'),
-              //   duration: Duration(milliseconds: 250),
-              // ));
-            }
-          },
-        )),
+                await recordModel.setInt(
+                    PrefsKey.lastClearedStage,
+                    max(recordModel.getInt(PrefsKey.lastClearedStage),
+                        widget.stageId));
+              } else {
+                Flushbar(
+                  animationDuration: const Duration(microseconds: 1),
+                  flushbarPosition: FlushbarPosition.TOP,
+                  flushbarStyle: FlushbarStyle.FLOATING,
+                  title: "아앗",
+                  message: "좀 더 정확하게!",
+                  duration: const Duration(seconds: 1),
+                  margin: const EdgeInsets.all(8),
+                  borderRadius: BorderRadius.circular(8),
+                ).show(context);
+
+                _tapCoolAnimCtrl.forward();
+                // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                //   behavior: SnackBarBehavior.floating,
+                //   margin: EdgeInsets.only(top: 0),
+                //   dismissDirection: DismissDirection.none,
+                //   content: Text('Miss'),
+                //   duration: Duration(milliseconds: 250),
+                // ));
+              }
+            },
+          ),
+        ),
+        if (_cleared) ...[
+          Positioned(
+            right: 0,
+            top: 0,
+            child: IconButton(
+              icon: const Icon(
+                Icons.switch_account,
+                shadows: [Shadow(color: Colors.white, blurRadius: 15.0)],
+              ),
+              onPressed: () {
+                setState(() {
+                  _manualToggled = !_manualToggled;
+                });
+              },
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -363,5 +394,16 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   void _initTapCoolAnimCtrl() {
     _tapCoolAnimCtrl = AnimationController(
         duration: const Duration(milliseconds: 500), vsync: this);
+  }
+
+  void _precacheResources() async {
+    await precacheImage(AssetImage(getLockImagePath(widget.stageId)), context);
+    if (context.mounted) {
+      await precacheImage(
+          AssetImage(getClearImagePath(widget.stageId)), context);
+      setState(() {
+        _precacheFinished = true;
+      });
+    }
   }
 }

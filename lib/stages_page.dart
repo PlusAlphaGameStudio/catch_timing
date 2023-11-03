@@ -30,7 +30,7 @@ class _StagesPageState extends State<StagesPage> {
           return Consumer<ResourceModel>(
             builder: (context, resourceModel, child) {
               return GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 padding: const EdgeInsets.all(8),
                 children: [
                   for (var i = 1; i <= resourceModel.totalImageCount; i++) ...[
