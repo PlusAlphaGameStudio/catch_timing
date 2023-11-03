@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:another_flushbar/flushbar.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:catch_timing/globals.dart';
