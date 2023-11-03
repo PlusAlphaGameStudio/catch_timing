@@ -7,6 +7,7 @@ import 'package:catch_timing/globals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import 'path_painter.dart';
@@ -107,12 +108,23 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
               onPressed: () {
                 Navigator.of(context).pop();
                 _moveAnimCtrl.repeat();
+                _postStart();
               },
             ),
           ],
         );
       },
     );
+  }
+
+  Future<http.Response> _postStart() {
+    return http.post(Uri.parse('$baseUrl/catchTiming/start'),
+        body: widget.stageId.toString());
+  }
+
+  Future<http.Response> _postClear() {
+    return http.post(Uri.parse('$baseUrl/catchTiming/clear'),
+        body: widget.stageId.toString());
   }
 
   void _initMoveAnimCtrl() {
@@ -364,6 +376,8 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   }
 
   void _showClearDialog() {
+    _postClear();
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,

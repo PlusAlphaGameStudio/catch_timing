@@ -24,3 +24,5 @@ Future<List<String>> getImagePathList() async {
       .where((key) => key.startsWith(_resourcePrefix))
       .toList();
 }
+
+String get baseUrl => const String.fromEnvironment("BASE_URL", defaultValue: 'http://localhost:21090');
