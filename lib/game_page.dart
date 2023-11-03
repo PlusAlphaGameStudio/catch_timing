@@ -43,9 +43,9 @@ class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
-  bool _precacheFinished = false;
-  bool _cleared = false;
-  bool _manualToggled = false;
+  var _precacheFinished = false;
+  var _cleared = false;
+  var _manualToggled = false;
 
   static const _circleRadius = 50.0;
   static const _circleSize = Size(_circleRadius, _circleRadius);
