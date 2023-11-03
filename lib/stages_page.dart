@@ -15,8 +15,6 @@ class StagesPage extends StatefulWidget {
 }
 
 class _StagesPageState extends State<StagesPage> {
-  int? _lastClearedStage;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -26,31 +24,28 @@ class _StagesPageState extends State<StagesPage> {
       ),
       body: Consumer<RecordModel>(
         builder: (context, recordModel, child) {
-          recordModel
-              .getInt(PrefsKey.lastClearedStage)
-              .then((lastClearedStage) {
-            if (_lastClearedStage != lastClearedStage) {
-              setState(() {
-                _lastClearedStage = lastClearedStage;
-              });
-            }
-          });
+          final lastClearedStage =
+              recordModel.getInt(PrefsKey.lastClearedStage);
 
-          return GridView.count(
-            crossAxisCount: 3,
-            padding: const EdgeInsets.all(8),
-            children: [
-              for (var i = 1; i <= 4; i++) ...[
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: StageButton(
-                      i,
-                      i <= ((_lastClearedStage ?? 0) + 1)
-                          ? StageState.unlock
-                          : StageState.lock),
-                ),
-              ]
-            ],
+          return Consumer<ResourceModel>(
+            builder: (context, resourceModel, child) {
+              return GridView.count(
+                crossAxisCount: 3,
+                padding: const EdgeInsets.all(8),
+                children: [
+                  for (var i = 1; i <= resourceModel.totalImageCount; i++) ...[
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: StageButton(
+                          i,
+                          i <= (lastClearedStage + 1)
+                              ? StageState.unlock
+                              : StageState.lock),
+                    ),
+                  ]
+                ],
+              );
+            },
           );
         },
       ),

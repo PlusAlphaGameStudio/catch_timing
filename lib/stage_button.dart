@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:catch_timing/globals.dart';
 import 'package:flutter/material.dart';
 
 import 'catch_timing_app_router.gr.dart';
@@ -18,24 +19,22 @@ class StageButton extends StatelessWidget {
 
   const StageButton(this.stageId, this.stageState, {super.key});
 
-  String get _fileName => '${stageId.toString().padLeft(2, '0')}.png';
-
   @override
   Widget build(BuildContext context) {
     return stageState == StageState.clear
-        ? Image.asset('assets/tests/images/clear/$_fileName')
+        ? Image.asset(getClearImagePath(stageId))
         : stageState == StageState.unlock
             ? InkWell(
                 onTap: () {
                   context.router.push(GameRoute(stageId: stageId));
                 },
-                child: Image.asset('assets/tests/images/lock/$_fileName'),
+                child: Image.asset(getLockImagePath(stageId)),
               )
             : ImageFiltered(
                 imageFilter: greyscaleColorFilter,
                 child: ImageFiltered(
                   imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Image.asset('assets/tests/images/lock/$_fileName'),
+                  child: Image.asset(getLockImagePath(stageId)),
                 ),
               );
   }

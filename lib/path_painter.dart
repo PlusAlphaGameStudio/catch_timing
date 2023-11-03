@@ -6,22 +6,25 @@ class PathPainter extends CustomPainter {
   final Path _path;
   final Offset _targetPos;
   final Offset _circlePos;
-  final Size _circleSize = const Size(100, 100);
+  final Size _circleSize;
 
   late final Paint _circlePaint;
   late final Paint _targetPaint;
 
-  PathPainter(this._bounds, this._path, this._targetPos, this._circlePos) {
+  PathPainter(this._bounds, this._path, this._circleSize, this._targetPos,
+      this._circlePos) {
+    const strokeWidth = 12.0;
+
     _circlePaint = Paint()
       ..color = Colors.red
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.0
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
     _targetPaint = Paint()
       ..color = Colors.cyan
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.0
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
   }
 

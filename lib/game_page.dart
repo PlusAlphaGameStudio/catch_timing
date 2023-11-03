@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:auto_route/annotations.dart';
+import 'package:catch_timing/globals.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -17,8 +18,6 @@ class GamePage extends StatefulWidget {
 
   const GamePage(@PathParam('stageId') this.stageId, {super.key});
 
-  String get fileName => '${stageId.toString().padLeft(2, '0')}.png';
-
   @override
   State<GamePage> createState() => _GamePageState();
 }
@@ -31,17 +30,21 @@ enum PathSegmentType {
 // TODO: image size
 const _imageSize = Size(640, 960);
 
-class _GamePageState extends State<GamePage>
-    with SingleTickerProviderStateMixin {
+class _GamePageState extends State<GamePage> with TickerProviderStateMixin {
   double _fraction = 0.0;
-  late final Animation<double> _animation;
-  late final AnimationController _controller;
+  late final Animation<double> _moveAnim;
+  late final AnimationController _moveAnimCtrl;
+  double _alpha = 0.0;
+  late final Animation<double> _alphaAnim;
+  late final AnimationController _alphaAnimCtrl;
   late final Path _path;
   late final PathMetric _pathMetric;
   late final Random _random;
   late final Offset _targetPos;
+  bool cleared = false;
 
-  static const _circleSize = Size(100, 100);
+  static const _circleRadius = 50.0;
+  static const _circleSize = Size(_circleRadius, _circleRadius);
   static const _speed = 0.2;
 
   @override
@@ -62,19 +65,65 @@ class _GamePageState extends State<GamePage>
       print('Target pos: $_targetPos');
     }
 
-    _controller = AnimationController(
+    _initMoveAnimCtrl();
+    _initAlphaAnimCtrl();
+
+    Future.delayed(Duration.zero, () {
+      _showStartDialog();
+    });
+  }
+
+  void _showStartDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('준비~'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('$_stageName 시작합니다~'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('시작!!!'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _moveAnimCtrl.repeat();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _initMoveAnimCtrl() {
+    _moveAnimCtrl = AnimationController(
         duration: Duration(milliseconds: (_pathMetric.length / _speed).round()),
         vsync: this);
 
-    _animation = Tween(begin: 0.0, end: 1.0).animate(_controller)
+    _moveAnim = Tween(begin: 0.0, end: 1.0).animate(_moveAnimCtrl)
       ..addListener(() {
         setState(() {
-          _fraction = _animation.value;
+          _fraction = _moveAnim.value;
         });
       });
+  }
 
-    //_controller.forward();
-    _controller.repeat();
+  void _initAlphaAnimCtrl() {
+    _alphaAnimCtrl =
+        AnimationController(duration: const Duration(seconds: 1), vsync: this);
+
+    _alphaAnim = Tween(begin: 0.0, end: 1.0).animate(_alphaAnimCtrl)
+      ..addListener(() {
+        setState(() {
+          _alpha = _moveAnim.value;
+        });
+      });
   }
 
   Offset _getRandomPointWithin(Size size) {
@@ -82,14 +131,14 @@ class _GamePageState extends State<GamePage>
         _random.nextDouble() * size.width, _random.nextDouble() * size.height);
   }
 
-  Path _createDebugPath(Size size, Offset targetPos) {
-    final path = Path();
-    path.lineTo(size.width, 0);
-    path.lineTo(size.width, size.height);
-    path.lineTo(0, size.height);
-    path.lineTo(0, 0);
-    return path;
-  }
+  // Path _createDebugPath(Size size, Offset targetPos) {
+  //   final path = Path();
+  //   path.lineTo(size.width, 0);
+  //   path.lineTo(size.width, size.height);
+  //   path.lineTo(0, size.height);
+  //   path.lineTo(0, 0);
+  //   return path;
+  // }
 
   Path _createPath(Size size, Offset targetPos) {
     final path = Path();
@@ -147,15 +196,10 @@ class _GamePageState extends State<GamePage>
 
     final hit = (circlePos - _targetPos).distance < 10;
 
-    final image = Image.asset(
-      hit
-          ? 'assets/tests/images/clear/${widget.fileName}'
-          : 'assets/tests/images/lock/${widget.fileName}',
-      //fit: BoxFit.contain,
-      //height: double.infinity,
-      //width: double.infinity,
-      //alignment: Alignment.center,
-    );
+    final lockImage = Image.asset(getLockImagePath(widget.stageId));
+    final clearImage = Image.asset(getClearImagePath(widget.stageId));
+
+    final image = hit ? clearImage : lockImage;
 
     final targetCirclePos = Offset(
       _targetPos.dx - _circleSize.width / 2,
@@ -167,12 +211,15 @@ class _GamePageState extends State<GamePage>
       circlePos.dy - _circleSize.height / 2,
     );
     return Scaffold(
+      appBar: AppBar(title: Text(_stageName)),
       body: Center(
         child:
             _buildGameWidget(image, targetCirclePos, crosshairCirclePos, hit),
       ),
     );
   }
+
+  String get _stageName => '스테이지 ${widget.stageId.toString().padLeft(2, '0')}';
 
   Widget _buildGameWidget(
     Widget image,
@@ -188,35 +235,47 @@ class _GamePageState extends State<GamePage>
             painter: PathPainter(
               _imageSize,
               _path,
+              _circleSize,
               targetCirclePos,
               crosshairCirclePos,
             ),
           ),
         ),
-        Positioned.fill(child: InkWell(
+        Positioned.fill(child: GestureDetector(
           onTapDown: (details) async {
             // 이미 클리어!
-            if (_controller.isAnimating == false) {
+            if (cleared) {
               return;
+            }
+
+            if (_moveAnimCtrl.isAnimating == false) {
+              _moveAnimCtrl.forward();
+              return;
+            } else {
+              _moveAnimCtrl.stop(canceled: false);
             }
 
             ScaffoldMessenger.of(context).clearSnackBars();
 
             if (hit) {
+              cleared = true;
+
               ScaffoldMessenger.of(context)
                   .showSnackBar(const SnackBar(content: Text('Hit!')));
-              _controller.stop(canceled: false);
 
               final recordModel = context.read<RecordModel>();
 
               await recordModel.setInt(
                   PrefsKey.lastClearedStage,
-                  max(await recordModel.getInt(PrefsKey.lastClearedStage),
+                  max(recordModel.getInt(PrefsKey.lastClearedStage),
                       widget.stageId));
             } else {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.only(top: 0),
+                dismissDirection: DismissDirection.none,
                 content: Text('Miss'),
-                duration: Duration(milliseconds: 0),
+                duration: Duration(milliseconds: 250),
               ));
             }
           },
@@ -227,13 +286,12 @@ class _GamePageState extends State<GamePage>
 
   @override
   void dispose() {
-    _controller.dispose();
+    _moveAnimCtrl.dispose();
     super.dispose();
   }
 
   void _createPathData() async {
-    final imgData =
-        await rootBundle.load('assets/tests/images/lock/${widget.fileName}');
+    final imgData = await rootBundle.load(getLockImagePath(widget.stageId));
     final img = await decodeImageFromList(imgData.buffer.asUint8List());
     if (kDebugMode) {
       print('Image resolution: (${img.width}x${img.height})');

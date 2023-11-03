@@ -19,16 +19,38 @@ class CatchTimingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ResourceModel()),
         ChangeNotifierProvider(create: (_) => RecordModel()),
       ],
-      child: MaterialApp.router(
-        routerConfig: _appRouter.config(),
-        title: '캐치 타이밍',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
-          useMaterial3: true,
-        ),
-      ),
+      child: Consumer2<ResourceModel, RecordModel>(
+          builder: (context, resourceModel, recordModel, child) {
+        resourceModel.tryInit();
+        recordModel.tryInit();
+
+        if (resourceModel.inited == true && recordModel.inited == true) {
+          return MaterialApp.router(
+            routerConfig: _appRouter.config(),
+            title: '캐치 타이밍',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+              appBarTheme: const AppBarTheme(
+                centerTitle: true,
+              ),
+              useMaterial3: true,
+            ),
+          );
+        } else {
+          return MaterialApp(
+            home: Scaffold(
+              body: Center(
+                  child: Text(resourceModel.inited == false ||
+                          recordModel.inited == false
+                      ? 'Init failed. Aborted.'
+                      : 'Loading...')),
+            ),
+          );
+        }
+      }),
     );
   }
 }
