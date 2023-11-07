@@ -18,5 +18,9 @@ class CatchTimingAppRouter extends $CatchTimingAppRouter {
           path: '/game/:stageId',
           page: GameRoute.page,
         ),
+        AutoRoute(
+          path: '/statistics',
+          page: StatisticsRoute.page,
+        ),
       ];
 }
